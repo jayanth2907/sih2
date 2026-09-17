@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trinetra-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://trinetra_user:trinetra_password@postgres:5432/trinetra_db
+      - JWT_SECRET=trinetra-super-secure-production-jwt-secret-key-replace-with-vault
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - trinetra-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trinetra-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - trinetra-net
+
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: trinetra-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=trinetra_db
+      - POSTGRES_USER=trinetra_user
+      - POSTGRES_PASSWORD=trinetra_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trinetra_user -d trinetra_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trinetra-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: trinetra-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trinetra-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  trinetra-net:
+    driver: bridge

@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #080A09;
+    --bg-surface-1: #0D100F;
+    --bg-surface-2: #121614;
+    --bg-surface-3: #171B18;
+    --border-subtle: #1B211E;
+    --border-card: #232A26;
+    --border-focus: #F59E0B;
+    
+    --color-accent: #F59E0B;
+    --color-accent-hover: #FFB52E;
+    
+    --severity-critical: #EF4444;
+    --severity-high: #F97316;
+    --severity-medium: #F59E0B;
+    --severity-low: #22C55E;
+    --severity-info: #60A5FA;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-primary);
+    color: #F1F5F9;
+    min-height: 100vh;
+    letter-spacing: -0.01em;
+  }
+
+  /* Technical typography utility classes */
+  .font-mono, 
+  code, 
+  pre, 
+  .tech-val, 
+  .coord-val, 
+  .timestamp-val, 
+  .hash-val, 
+  .sensor-code {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+/* Industrial Command Palette / SCADA Surface Utilities */
+.surface-card {
+  background-color: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+}
+
+.surface-panel {
+  background-color: var(--bg-surface-2);
+  border: 1px solid var(--border-card);
+}
+
+.surface-elevated {
+  background-color: var(--bg-surface-3);
+  border: 1px solid var(--border-card);
+}
+
+/* Severity Pill Utilities */
+.pill-critical {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.pill-high {
+  background-color: rgba(249, 115, 22, 0.12);
+  color: #FB923C;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+
+.pill-medium {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.pill-low {
+  background-color: rgba(34, 197, 94, 0.12);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.pill-info {
+  background-color: rgba(96, 165, 250, 0.12);
+  color: #93C5FD;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #080A09;
+}
+::-webkit-scrollbar-thumb {
+  background: #1B211E;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2D3732;
+}
