@@ -169,14 +169,11 @@ export const IntegrationsHealthPage: React.FC = () => {
               <Network className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                {t('integrationsHealth')}
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-cyan-400 border border-slate-700 font-mono">
-                  ENTERPRISE GATEWAY
-                </span>
+              <h1 className="text-xl font-bold text-slate-100">
+                System Health
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                Government Ecosystem Adapters (CMSMS, PARIVESH, DGMS), Circuit Breakers & SHA-256 Audit Integrity
+                Real-time status of connected government systems, data feeds, and audit integrity verification.
               </p>
             </div>
           </div>

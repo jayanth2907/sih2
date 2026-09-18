@@ -67,17 +67,11 @@ export const ApprovalsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
-              Digital Sign-off & Separation of Duties Queue
-            </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800">
-              SHA-256 AUDITED
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Enforce statutory four-eyes principle, executive review of mine dossiers, and non-repudiable audit trails.
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            Approvals &amp; Sign-offs
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Review and approve mine dossiers, inspections, and compliance documents. All approvals are permanently recorded.
           </p>
         </div>
       </div>

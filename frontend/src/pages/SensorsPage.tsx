@@ -3,30 +3,43 @@ import { useMineContext } from '../context/MineContext';
 import { sensorService } from '../services';
 import type { Sensor, SensorReading } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { 
-  Activity, 
-  RefreshCw, 
-  Radio, 
-  Flame, 
-  Wind, 
-  WifiOff, 
-  TrendingUp, 
-  History, 
-  X, 
-  CheckCircle2, 
-  AlertCircle,
-  Play,
-  Crosshair
+import { EmptyState, PageLoadingState } from '../components/ui/EmptyState';
+import { PageHeader, SectionHeader } from '../components/ui/PageHeader';
+import {
+  Activity, RefreshCw, Flame, Wind, Thermometer,
+  CloudFog, X, TrendingUp, TrendingDown, Minus,
+  ChevronDown, Eye
 } from 'lucide-react';
+
+/** Map sensor code prefix to a human-friendly name */
+function friendlyName(sensorCode: string, fallback?: string): string {
+  const map: Record<string, string> = {
+    CH4: 'Methane', CO: 'Carbon Monoxide', CO2: 'Carbon Dioxide',
+    O2: 'Oxygen', TEMP: 'Temperature', H2S: 'Hydrogen Sulfide',
+    DUST: 'Dust (PM)', AIR: 'Air Velocity', VENT: 'Ventilation',
+    HUM: 'Humidity', NOISE: 'Noise', SEIS: 'Seismic',
+    PRES: 'Air Pressure',
+  };
+  const prefix = sensorCode?.split(/[-_\d]/)[0]?.toUpperCase() ?? '';
+  return map[prefix] ?? fallback ?? sensorCode;
+}
+
+function sensorIcon(code: string) {
+  const p = code?.toUpperCase();
+  if (p?.includes('CH4') || p?.includes('CO') || p?.includes('H2S')) return Flame;
+  if (p?.includes('TEMP')) return Thermometer;
+  if (p?.includes('AIR') || p?.includes('VENT') || p?.includes('WIND')) return Wind;
+  if (p?.includes('DUST') || p?.includes('PM')) return CloudFog;
+  return Activity;
+}
 
 export const SensorsPage: React.FC = () => {
   const { selectedMine, focusInDigitalTwin } = useMineContext();
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [selectedSensorReadings, setSelectedSensorReadings] = useState<{ sensor: Sensor; readings: SensorReading[] } | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [activeScenario, setActiveScenario] = useState<string>('NORMAL');
+  const [detailSensor, setDetailSensor] = useState<{ sensor: Sensor; readings: SensorReading[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const fetchSensors = async () => {
     if (!selectedMine) return;
@@ -34,7 +47,7 @@ export const SensorsPage: React.FC = () => {
     try {
       const data = await sensorService.getSensors(
         selectedMine.id,
-        statusFilter === 'ALL' ? undefined : statusFilter
+        statusFilter === 'ALL' ? undefined : statusFilter,
       );
       setSensors(data);
     } catch (err) {
@@ -44,268 +57,267 @@ export const SensorsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchSensors();
-  }, [selectedMine?.id, statusFilter]);
+  useEffect(() => { fetchSensors(); }, [selectedMine?.id, statusFilter]);
 
-  const handleTriggerScenario = async (scenario: string) => {
-    if (!selectedMine) return;
-    setIsSimulating(true);
-    setActiveScenario(scenario);
-    try {
-      await sensorService.simulateScenario(selectedMine.id, scenario);
-      await fetchSensors();
-    } catch (err) {
-      console.error('Scenario simulation failed:', err);
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  const handleOpenReadings = async (sensor: Sensor) => {
+  const handleOpenDetail = async (sensor: Sensor) => {
     try {
       const readings = await sensorService.getSensorReadings(sensor.id, 20);
-      setSelectedSensorReadings({ sensor, readings });
+      setDetailSensor({ sensor, readings });
     } catch (err) {
       console.error('Failed to load sensor readings:', err);
     }
   };
 
+  const handleSimulate = async (scenario: string) => {
+    if (!selectedMine) return;
+    setIsSimulating(true);
+    try {
+      await sensorService.simulateScenario(selectedMine.id, scenario);
+      await fetchSensors();
+    } catch (err) {
+      console.error('Scenario failed:', err);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  if (!selectedMine) return null;
+
+  const criticalCount = sensors.filter(s => s.status === 'CRITICAL').length;
+  const warningCount  = sensors.filter(s => s.status === 'WARNING').length;
+  const offlineCount  = sensors.filter(s => s.status === 'OFFLINE' || s.status === 'MAINTENANCE').length;
+
+  const FILTERS = [
+    { value: 'ALL',      label: 'All' },
+    { value: 'CRITICAL', label: 'Critical' },
+    { value: 'WARNING',  label: 'Attention' },
+    { value: 'ACTIVE',   label: 'Normal' },
+    { value: 'OFFLINE',  label: 'Offline' },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Environmental & Telemetry Nodes</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time gas concentration, air velocity, dust PM, and strata seismic monitoring with deterministic simulation.
-          </p>
-        </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        title="Live Environmental Monitoring"
+        subtitle="Real-time gas, air quality, temperature and safety sensor readings across all mine zones."
+        badge={
+          criticalCount > 0 ? (
+            <span className="badge status-critical"><span className="badge-dot" />{criticalCount} critical</span>
+          ) : warningCount > 0 ? (
+            <span className="badge status-warning"><span className="badge-dot" />{warningCount} need attention</span>
+          ) : undefined
+        }
+        actions={
+          <button onClick={fetchSensors} disabled={isLoading} className="btn btn-secondary btn-sm">
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        }
+      />
 
-        {/* Status Filter */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono">
-          {['ALL', 'ACTIVE', 'WARNING', 'CRITICAL', 'OFFLINE'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 rounded transition-colors ${
-                statusFilter === st
-                  ? 'bg-amber-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+      {/* Summary pills */}
+      {sensors.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="badge status-success"><span className="badge-dot" />{sensors.filter(s => s.status === 'ACTIVE').length} normal</span>
+          {warningCount > 0 && <span className="badge status-warning"><span className="badge-dot" />{warningCount} attention</span>}
+          {criticalCount > 0 && <span className="badge status-critical"><span className="badge-dot" />{criticalCount} critical</span>}
+          {offlineCount > 0 && <span className="badge status-neutral"><span className="badge-dot" />{offlineCount} offline</span>}
         </div>
+      )}
+
+      {/* Filter */}
+      <div
+        className="flex items-center gap-1 p-1 rounded-lg w-fit"
+        style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-base)' }}
+        role="group"
+        aria-label="Filter by sensor status"
+      >
+        {FILTERS.map(f => (
+          <button
+            key={f.value}
+            onClick={() => setStatusFilter(f.value)}
+            aria-pressed={statusFilter === f.value}
+            className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer"
+            style={{
+              backgroundColor: statusFilter === f.value ? 'var(--brand-primary)' : 'transparent',
+              color: statusFilter === f.value ? '#0A0F0D' : 'var(--text-muted)',
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      {/* Deterministic Simulation Scenario Control Center */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Play className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono">
-              Deterministic Simulation Scenario Controls (SIH Testing)
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono text-cyan-400">Source: SIMULATED (MQTT Ready)</span>
+      {isLoading ? (
+        <PageLoadingState message="Loading sensor readings…" />
+      ) : sensors.length === 0 ? (
+        <div className="surface-card">
+          <EmptyState
+            icon={Activity}
+            title="No sensors found"
+            description="No sensors matching the selected filter are currently configured for this mine."
+            compact
+          />
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {sensors.map((s) => {
+            const Icon = sensorIcon(s.sensor_code);
+            const isNormal   = s.status === 'ACTIVE';
+            const isWarning  = s.status === 'WARNING';
+            const isCritical = s.status === 'CRITICAL';
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1 font-mono text-xs">
-          <button
-            onClick={() => handleTriggerScenario('NORMAL')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'NORMAL'
-                ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-[11px]">Normal Baseline</span>
-          </button>
+            const valueColor = isCritical ? 'var(--color-critical-text)'
+              : isWarning ? 'var(--color-warning-text)'
+              : isNormal  ? 'var(--color-success-text)'
+              : 'var(--text-muted)';
 
-          <button
-            onClick={() => handleTriggerScenario('METHANE_SPIKE')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'METHANE_SPIKE'
-                ? 'bg-rose-950/80 border-rose-600 text-rose-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <Flame className="w-4 h-4 text-rose-400" />
-            <span className="text-[11px]">Methane Spike</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerScenario('CO_SPIKE')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'CO_SPIKE'
-                ? 'bg-amber-950/80 border-amber-600 text-amber-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <AlertCircle className="w-4 h-4 text-amber-400" />
-            <span className="text-[11px]">CO Gas Surge</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerScenario('VENTILATION_DROP')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'VENTILATION_DROP'
-                ? 'bg-cyan-950/80 border-cyan-600 text-cyan-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <Wind className="w-4 h-4 text-cyan-400" />
-            <span className="text-[11px]">Ventilation Drop</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerScenario('SENSOR_OFFLINE')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'SENSOR_OFFLINE'
-                ? 'bg-purple-950/80 border-purple-600 text-purple-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <WifiOff className="w-4 h-4 text-purple-400" />
-            <span className="text-[11px]">Sensor Silence</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerScenario('MULTI_SENSOR_ANOMALY')}
-            disabled={isSimulating}
-            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 text-center transition-all ${
-              activeScenario === 'MULTI_SENSOR_ANOMALY'
-                ? 'bg-rose-950/80 border-rose-600 text-rose-300 font-bold'
-                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-300'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4 text-rose-400" />
-            <span className="text-[11px]">Multi-Hazard Spike</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Sensor Table */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-md">
-        <table className="w-full text-left text-xs font-mono">
-          <thead>
-            <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[10px]">
-              <th className="py-3.5 px-4 font-semibold">Sensor Code</th>
-              <th className="py-3.5 px-4 font-semibold">Sensor Name / Type</th>
-              <th className="py-3.5 px-4 font-semibold">Zone / Level</th>
-              <th className="py-3.5 px-4 font-semibold">Live Telemetry</th>
-              <th className="py-3.5 px-4 font-semibold">Thresholds (Warn / Crit)</th>
-              <th className="py-3.5 px-4 font-semibold">3D Coords (x,y,z)</th>
-              <th className="py-3.5 px-4 font-semibold">Status</th>
-              <th className="py-3.5 px-4 font-semibold">History</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-300">
-            {sensors.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
-                <td className="py-3 px-4 font-bold text-amber-400">{s.sensor_code}</td>
-                <td className="py-3 px-4">
-                  <p className="font-semibold text-white">{s.name}</p>
-                  <p className="text-[10px] text-slate-500">{s.sensor_type_code}</p>
-                </td>
-                <td className="py-3 px-4">
-                  <p className="text-slate-200">{s.zone_name || 'Mine Zone'}</p>
-                  <p className="text-[10px] text-slate-500">{s.level_name || 'Level'}</p>
-                </td>
-                <td className="py-3 px-4">
-                  <span className={`text-sm font-bold ${
-                    s.status === 'CRITICAL' ? 'text-rose-400' :
-                    s.status === 'WARNING' ? 'text-amber-400' :
-                    s.status === 'OFFLINE' ? 'text-purple-400' : 'text-emerald-400'
-                  }`}>
-                    {s.last_value !== undefined ? `${s.last_value} ${s.unit}` : 'OFFLINE'}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-slate-400">
-                  <span className="text-amber-300">{s.warning_threshold}</span> / <span className="text-rose-400">{s.critical_threshold}</span> {s.unit}
-                </td>
-                <td className="py-3 px-4 text-slate-500 text-[10px]">
-                  ({s.x}, {s.y}, {s.z})
-                </td>
-                <td className="py-3 px-4">
-                  <StatusBadge status={s.status} size="sm" />
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() =>
-                        focusInDigitalTwin({
-                          type: 'sensor',
-                          id: s.id,
-                          x: s.x,
-                          y: s.y,
-                          z: s.z,
-                          title: `${s.sensor_code}: ${s.name}`
-                        })
-                      }
-                      className="p-1.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-colors border border-amber-500/30 cursor-pointer"
-                      title="Center in 3D Digital Twin"
-                    >
-                      <Crosshair className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleOpenReadings(s)}
-                      className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                      title="View Telemetry Reading History"
-                    >
-                      <History className="w-3.5 h-3.5" />
-                    </button>
+            return (
+              <div key={s.id} className="surface-card p-4 flex flex-col gap-3">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {friendlyName(s.sensor_code, s.name)}
+                    </span>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  <StatusBadge status={s.status} size="sm" />
+                </div>
 
-      {/* Reading History Drawer */}
-      {selectedSensorReadings && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
-              <div>
-                <span className="text-xs font-mono font-bold text-amber-400">
-                  {selectedSensorReadings.sensor.sensor_code}
-                </span>
-                <h3 className="text-base font-bold text-white mt-1">
-                  {selectedSensorReadings.sensor.name}
-                </h3>
+                {/* Value */}
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-bold leading-none" style={{ color: valueColor }}>
+                    {s.last_value !== undefined ? s.last_value : '—'}
+                  </span>
+                  <span className="text-sm text-[var(--text-muted)]">{s.unit}</span>
+                </div>
+
+                {/* Zone */}
+                <p className="text-xs text-[var(--text-muted)]">
+                  {s.zone_name || 'Main Zone'} · {s.level_name || 'Level 1'}
+                </p>
+
+                {/* Threshold bar */}
+                <div>
+                  <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1">
+                    <span>Safe limit: {s.warning_threshold} {s.unit}</span>
+                    <span>Critical: {s.critical_threshold} {s.unit}</span>
+                  </div>
+                  <div
+                    className="h-1.5 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'var(--bg-muted)' }}
+                    role="progressbar"
+                    aria-label={`${friendlyName(s.sensor_code)} reading`}
+                    aria-valuenow={s.last_value}
+                    aria-valuemax={s.critical_threshold}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: s.last_value !== undefined && s.critical_threshold
+                          ? `${Math.min((s.last_value / s.critical_threshold) * 100, 100)}%`
+                          : '0%',
+                        backgroundColor: isCritical ? 'var(--color-critical)'
+                          : isWarning ? 'var(--color-warning)'
+                          : 'var(--color-success)',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-1" style={{ borderTop: '1px solid var(--border-base)' }}>
+                  <button
+                    onClick={() => handleOpenDetail(s)}
+                    className="btn btn-ghost btn-sm flex-1 justify-center text-xs"
+                  >
+                    View history
+                  </button>
+                  <button
+                    onClick={() => focusInDigitalTwin({ type: 'sensor', id: s.id, x: s.x, y: s.y, z: s.z, title: friendlyName(s.sensor_code) })}
+                    className="btn btn-ghost btn-sm p-1.5"
+                    title="View in mine map"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setSelectedSensorReadings(null)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sensor detail drawer */}
+      {detailSensor && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl shadow-2xl max-h-[80vh] flex flex-col"
+            style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-muted)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sensor details"
+          >
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-base)' }}>
+              <div>
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                  {friendlyName(detailSensor.sensor.sensor_code, detailSensor.sensor.name)}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {detailSensor.sensor.zone_name || 'Main Zone'} · {detailSensor.sensor.level_name}
+                </p>
+              </div>
+              <button onClick={() => setDetailSensor(null)} className="btn btn-ghost btn-sm p-1.5" aria-label="Close">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs font-mono">
-              <span>Thresholds: <b className="text-amber-300">{selectedSensorReadings.sensor.warning_threshold}</b> (Warn) / <b className="text-rose-400">{selectedSensorReadings.sensor.critical_threshold}</b> (Crit) {selectedSensorReadings.sensor.unit}</span>
-              <StatusBadge status={selectedSensorReadings.sensor.status} size="sm" />
-            </div>
-
-            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-              {selectedSensorReadings.readings.map((r) => (
-                <div key={r.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 flex items-center justify-between font-mono text-xs">
-                  <div>
-                    <span className="font-bold text-white text-sm">{r.value} {r.unit}</span>
-                    <span className="text-[10px] text-slate-500 ml-2">Source: {r.source}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400">{new Date(r.timestamp).toLocaleTimeString()}</span>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Technical details — clearly labelled as such */}
+              <details className="rounded-md overflow-hidden" style={{ backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border-base)' }}>
+                <summary className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--text-secondary)]">
+                  Technical sensor information
+                </summary>
+                <div className="px-4 pb-3 grid grid-cols-2 gap-y-2 gap-x-4">
+                  {[
+                    ['Sensor ID', detailSensor.sensor.sensor_code],
+                    ['Device status', detailSensor.sensor.status],
+                    ['Warning threshold', `${detailSensor.sensor.warning_threshold} ${detailSensor.sensor.unit}`],
+                    ['Critical threshold', `${detailSensor.sensor.critical_threshold} ${detailSensor.sensor.unit}`],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <p className="text-xs text-[var(--text-muted)]">{label}</p>
+                      <p className="text-xs font-medium text-[var(--text-secondary)] tech-value">{val}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </details>
+
+              {/* Reading history */}
+              <SectionHeader title="Reading History" />
+              {detailSensor.readings.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">No historical readings available.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {detailSensor.readings.map((r, i) => (
+                    <div
+                      key={r.id ?? i}
+                      className="flex items-center justify-between p-2.5 rounded-md"
+                      style={{ backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border-base)' }}
+                    >
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {r.value} {detailSensor.sensor.unit}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)] tech-value">
+                        {new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -29,11 +29,11 @@ export const CamerasPage: React.FC = () => {
   if (!selectedMine) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-enter">
       <div>
-        <h2 className="text-xl font-bold text-white tracking-tight">CCTV Infrastructure & Heavy Machinery</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Spatial video nodes and mechanized extraction equipment positioned in 3D coordinate space.
+        <h2 className="text-xl font-semibold text-[var(--text-primary)]">CCTV &amp; Equipment</h2>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
+          Camera coverage and heavy machinery deployed across mine zones.
         </p>
       </div>
 

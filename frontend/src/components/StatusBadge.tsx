@@ -5,34 +5,103 @@ interface StatusBadgeProps {
   status: string;
   className?: string;
   size?: 'sm' | 'md';
+  showDot?: boolean;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className, size = 'md' }) => {
-  const normalized = (status || '').toUpperCase();
+/** Human-readable label map — translates DB/system values to plain English */
+const LABEL_MAP: Record<string, string> = {
+  // Lifecycle / incident statuses
+  OPEN:         'Open',
+  TRIAGED:      'Under Review',
+  ASSIGNED:     'Assigned',
+  IN_PROGRESS:  'In Progress',
+  ESCALATED:    'Escalated',
+  RESOLVED:     'Resolved',
+  VERIFIED:     'Verified',
+  CLOSED:       'Closed',
+  // Alert statuses
+  UNREAD:       'New',
+  ACKNOWLEDGED: 'Acknowledged',
+  // Sensor / device statuses
+  ACTIVE:       'Normal',
+  WARNING:      'Attention',
+  CRITICAL:     'Critical',
+  OFFLINE:      'Offline',
+  INACTIVE:     'Inactive',
+  DISABLED:     'Disabled',
+  // Compliance / health
+  GOOD:         'Good',
+  HEALTHY:      'Healthy',
+  OPERATIONAL:  'Operational',
+  DEGRADED:     'Degraded',
+  FAIL:         'Failed',
+  PASS:         'Passed',
+  // Severity levels
+  HIGH:         'High',
+  MEDIUM:       'Medium',
+  LOW:          'Low',
+  // Task / action statuses
+  PENDING:      'Pending',
+  REVIEW_REQUIRED: 'Review Required',
+  COMPLETED:    'Completed',
+  OVERDUE:      'Overdue',
+  // Risk / risk zones
+  EXTREME:      'Extreme Risk',
+  // Special
+  SIMULATED:    'Simulated',
+  DEMO:         'Demo',
+  EXTERNAL:     'External',
+  PREDICTIVE:   'Predicted',
+  TAMPER_DETECTED: 'Tamper Detected',
+  BREACH:       'Breach',
+};
 
-  let colorClasses = 'bg-[#121614] text-slate-300 border-[#1B211E]';
-
-  if (['ACTIVE', 'GOOD', 'OPERATIONAL', 'CLOSED', 'LOW', 'VERIFIED', 'RESOLVED', 'HEALTHY', 'PASS'].includes(normalized)) {
-    colorClasses = 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60';
-  } else if (['WARNING', 'MEDIUM', 'TRIAGED', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'REVIEW_REQUIRED'].includes(normalized)) {
-    colorClasses = 'bg-amber-950/50 text-amber-300 border-amber-800/60';
-  } else if (['CRITICAL', 'HIGH', 'ESCALATED', 'OFFLINE', 'FAIL', 'TAMPER_DETECTED', 'BREACH'].includes(normalized)) {
-    colorClasses = 'bg-rose-950/50 text-rose-300 border-rose-800/60';
-  } else if (['SIMULATED', 'DEMO', 'EXTERNAL', 'PREDICTIVE'].includes(normalized)) {
-    colorClasses = 'bg-blue-950/50 text-blue-300 border-blue-800/60';
+/** Semantic colour categories */
+function getVariant(normalized: string): 'critical' | 'warning' | 'success' | 'info' | 'neutral' {
+  if (['CRITICAL', 'HIGH', 'ESCALATED', 'OFFLINE', 'FAIL', 'TAMPER_DETECTED', 'BREACH', 'EXTREME', 'OVERDUE'].includes(normalized)) {
+    return 'critical';
   }
+  if (['WARNING', 'MEDIUM', 'TRIAGED', 'ASSIGNED', 'IN_PROGRESS', 'PENDING', 'REVIEW_REQUIRED', 'DEGRADED'].includes(normalized)) {
+    return 'warning';
+  }
+  if (['ACTIVE', 'GOOD', 'OPERATIONAL', 'CLOSED', 'LOW', 'VERIFIED', 'RESOLVED', 'HEALTHY', 'PASS', 'COMPLETED'].includes(normalized)) {
+    return 'success';
+  }
+  if (['SIMULATED', 'DEMO', 'EXTERNAL', 'PREDICTIVE', 'INFO'].includes(normalized)) {
+    return 'info';
+  }
+  return 'neutral';
+}
+
+const VARIANT_CLASSES = {
+  critical: 'status-critical',
+  warning:  'status-warning',
+  success:  'status-success',
+  info:     'status-info',
+  neutral:  'status-neutral',
+};
+
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  className,
+  size = 'md',
+  showDot = true,
+}) => {
+  const normalized = (status || '').toUpperCase();
+  const variant = getVariant(normalized);
+  const label = LABEL_MAP[normalized] ?? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 font-medium border rounded-md font-mono tracking-wider',
-        size === 'sm' ? 'px-2 py-0.5 text-[10.5px]' : 'px-2.5 py-1 text-xs',
-        colorClasses,
+        'badge',
+        VARIANT_CLASSES[variant],
+        size === 'sm' ? 'text-[0.6875rem] px-2 py-0.5' : 'text-xs px-2.5 py-1',
         className
       )}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-      {normalized.replace(/_/g, ' ')}
+      {showDot && <span className="badge-dot" />}
+      {label}
     </span>
   );
 };

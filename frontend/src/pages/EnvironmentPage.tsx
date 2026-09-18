@@ -33,41 +33,33 @@ export const EnvironmentPage: React.FC = () => {
   const criticalCount = observations.filter((o) => o.severity === 'CRITICAL' || o.severity === 'HIGH').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-enter">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              <Leaf className="w-5 h-5 text-emerald-400" />
-              Environmental Compliance & Atmospheric Governance
-            </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800">
-              DGMS & CPCB PARAMETERS
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time environmental threshold monitoring, dust & mine air quality, water discharge, and spatial anomaly telemetry.
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Environmental Monitoring</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Air quality, dust, water discharge, and atmospheric safety observations for this mine.
           </p>
         </div>
       </div>
 
       {/* KPI Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-mono text-xs">
-        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-1">
-          <span className="text-slate-500 text-[10px] uppercase">Logged Observations</span>
-          <p className="text-2xl font-bold text-white">{observations.length}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
+        <div className="metric-card">
+          <p className="metric-label">Total Observations</p>
+          <p className="metric-value">{observations.length}</p>
         </div>
-        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-1">
-          <span className="text-slate-500 text-[10px] uppercase">Active Alerts</span>
-          <p className="text-2xl font-bold text-amber-400">{activeObservations}</p>
+        <div className="metric-card">
+          <p className="metric-label">Active Issues</p>
+          <p className="metric-value" style={{ color: activeObservations > 0 ? 'var(--color-warning-text)' : 'var(--text-primary)' }}>{activeObservations}</p>
         </div>
-        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-1">
-          <span className="text-slate-500 text-[10px] uppercase">High / Critical Alerts</span>
-          <p className="text-2xl font-bold text-rose-400">{criticalCount}</p>
+        <div className="metric-card">
+          <p className="metric-label">High / Critical</p>
+          <p className="metric-value" style={{ color: criticalCount > 0 ? 'var(--color-critical-text)' : 'var(--text-primary)' }}>{criticalCount}</p>
         </div>
-        <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-1">
-          <span className="text-slate-500 text-[10px] uppercase">Sensor Link</span>
+        <div className="metric-card">
+          <p className="metric-label">Live Sensor Link</p>
           <p className="text-2xl font-bold text-emerald-400">ONLINE</p>
         </div>
       </div>

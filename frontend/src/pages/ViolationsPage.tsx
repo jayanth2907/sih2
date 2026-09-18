@@ -3,17 +3,21 @@ import { useMineContext } from '../context/MineContext';
 import { incidentService } from '../services';
 import { Violation } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { FileText, ShieldAlert, CheckCircle2, Clock, Scale } from 'lucide-react';
+import { EmptyState, PageLoadingState } from '../components/ui/EmptyState';
+import { PageHeader, SectionHeader } from '../components/ui/PageHeader';
+import { CheckCircle2, FileText, Scale, ChevronDown, ChevronUp, IndianRupee } from 'lucide-react';
 
 export const ViolationsPage: React.FC = () => {
   const { selectedMine } = useMineContext();
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!selectedMine) return;
     setIsLoading(true);
-    incidentService.getViolations(selectedMine.id)
+    incidentService
+      .getViolations(selectedMine.id)
       .then(setViolations)
       .catch(console.error)
       .finally(() => setIsLoading(false));
@@ -21,77 +25,151 @@ export const ViolationsPage: React.FC = () => {
 
   if (!selectedMine) return null;
 
+  const openCount = violations.filter(v => v.status !== 'CLOSED').length;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-white tracking-tight">Statutory DGMS Compliance & Violations</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Regulatory breach log citing Coal Mines Regulations (CMR 2017) and statutory remedial deadlines.
-        </p>
-      </div>
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        title="Compliance Issues"
+        subtitle="Statutory compliance requirements and corrective actions under Coal Mines Regulations."
+        badge={
+          openCount > 0 ? (
+            <span className="badge status-warning">
+              <span className="badge-dot" />
+              {openCount} open
+            </span>
+          ) : undefined
+        }
+      />
 
-      <div className="space-y-4">
-        {violations.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-500 font-mono text-xs">
-            No statutory non-compliance violations recorded for this mine.
-          </div>
-        ) : (
-          violations.map((v) => (
-            <div key={v.id} className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 text-xs font-mono font-bold border border-rose-800/60">
-                      {v.violation_code}
-                    </span>
-                    <span className="text-xs font-mono text-slate-400">{v.statute}</span>
+      {isLoading ? (
+        <PageLoadingState message="Loading compliance data…" />
+      ) : violations.length === 0 ? (
+        <div className="surface-card">
+          <EmptyState
+            icon={CheckCircle2}
+            title="No compliance issues"
+            description="This mine currently has no open compliance issues or statutory violations on record."
+          />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {violations.map((v) => {
+            const isExpanded = expandedId === v.id;
+            return (
+              <article key={v.id} className="surface-card overflow-hidden">
+                {/* Card header */}
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : v.id)}
+                  className="w-full text-left p-4 md:p-5 flex items-start justify-between gap-3 hover:bg-[var(--bg-overlay)] transition-colors cursor-pointer"
+                  aria-expanded={isExpanded}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span
+                        className="tech-value text-xs px-2 py-0.5 rounded"
+                        style={{
+                          backgroundColor: 'var(--color-critical-bg)',
+                          color: 'var(--color-critical-text)',
+                          border: '1px solid var(--color-critical-border)',
+                        }}
+                      >
+                        {v.violation_code}
+                      </span>
+                      <StatusBadge status={v.severity} size="sm" />
+                      <StatusBadge status={v.status} size="sm" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">{v.title}</h3>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">{v.statute}</p>
                   </div>
-                  <h3 className="text-base font-bold text-white mt-1.5">{v.title}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={v.severity} size="sm" />
-                  <StatusBadge status={v.status} size="sm" />
-                </div>
-              </div>
+                  <div className="flex-shrink-0">
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
+                      : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                    }
+                  </div>
+                </button>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-xs space-y-2">
-                <div className="flex items-start gap-2 text-amber-300">
-                  <Scale className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p className="font-mono font-semibold">{v.regulatory_clause}</p>
-                </div>
-                <p className="text-slate-300 leading-relaxed pl-6">{v.description}</p>
-              </div>
-
-              {/* Corrective Actions Section */}
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Assigned Remedial Actions:
-                </p>
-                {v.corrective_actions.length === 0 ? (
-                  <p className="text-xs text-slate-500 font-mono">No corrective actions assigned yet.</p>
-                ) : (
-                  v.corrective_actions.map((ca) => (
-                    <div key={ca.id} className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/60 flex items-center justify-between text-xs font-mono">
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div
+                    className="px-4 pb-5 md:px-5 space-y-4"
+                    style={{ borderTop: '1px solid var(--border-base)' }}
+                  >
+                    {/* Regulatory reference */}
+                    <div
+                      className="flex items-start gap-2.5 p-3 rounded-md mt-4"
+                      style={{ backgroundColor: 'var(--bg-muted)' }}
+                    >
+                      <Scale className="w-4 h-4 text-[var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
                       <div>
-                        <p className="text-slate-200">{ca.action_text}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          Target Deadline: {new Date(ca.target_completion_date).toLocaleDateString()}
+                        <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-0.5">
+                          Regulatory reference
+                        </p>
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                          {v.regulatory_clause}
                         </p>
                       </div>
-                      <StatusBadge status={ca.status} size="sm" />
                     </div>
-                  ))
-                )}
-              </div>
 
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-3 border-t border-slate-800/60">
-                <span>Inspector: <b className="text-slate-300">{v.inspector_name || 'DGMS Officer'}</b></span>
-                <span>Penalty Liability: <b className="text-rose-400">₹{v.financial_penalty_amount.toLocaleString()}</b></span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                      {v.description}
+                    </p>
+
+                    {/* Corrective actions */}
+                    {v.corrective_actions && v.corrective_actions.length > 0 && (
+                      <div>
+                        <SectionHeader title="Required Actions" />
+                        <div className="space-y-2">
+                          {v.corrective_actions.map((ca) => (
+                            <div
+                              key={ca.id}
+                              className="flex items-center justify-between p-3 rounded-md"
+                              style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-base)' }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-[var(--text-primary)]">{ca.action_text}</p>
+                                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                                  Due by {new Date(ca.target_completion_date).toLocaleDateString('en-IN', {
+                                    day: 'numeric', month: 'short', year: 'numeric'
+                                  })}
+                                </p>
+                              </div>
+                              <StatusBadge status={ca.status} size="sm" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {v.corrective_actions?.length === 0 && (
+                      <p className="text-sm text-[var(--text-muted)]">
+                        No corrective actions have been assigned yet.
+                      </p>
+                    )}
+
+                    {/* Footer metadata */}
+                    <div
+                      className="flex items-center justify-between pt-3 text-xs text-[var(--text-muted)] flex-wrap gap-2"
+                      style={{ borderTop: '1px solid var(--border-base)' }}
+                    >
+                      <span>
+                        Inspector: <span className="text-[var(--text-secondary)] font-medium">{v.inspector_name || 'DGMS Officer'}</span>
+                      </span>
+                      {v.financial_penalty_amount > 0 && (
+                        <span className="flex items-center gap-1" style={{ color: 'var(--color-critical-text)' }}>
+                          <IndianRupee className="w-3 h-3" aria-hidden="true" />
+                          Penalty: ₹{v.financial_penalty_amount.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

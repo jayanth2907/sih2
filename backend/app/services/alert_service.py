@@ -93,7 +93,7 @@ class AlertService:
                 .filter(
                     Incident.mine_id == mine_id,
                     Incident.zone_id == sensor.zone_id,
-                    Incident.category == "GAS_ANOMALY" if "CH4" in sensor.sensor_code or "METHANE" in sensor.sensor_code else "HAZARD_ANOMALY",
+                    Incident.category == ("GAS_ANOMALY" if ("CH4" in sensor.sensor_code or "METHANE" in sensor.sensor_code) else "HAZARD_ANOMALY"),
                     Incident.status.in_(["OPEN", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "ESCALATED"])
                 )
                 .order_by(Incident.created_at.desc())

@@ -182,15 +182,16 @@ export const DemoControlCenterPage: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-white tracking-wide">
-                    SIH Demonstration Scenario Engine & Control Center
+                  <h1 className="text-2xl font-bold text-white">
+                    Demo & Simulation
                   </h1>
-                  <span className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold tracking-wider">
-                    DEMO MODE • DETERMINISTIC
+                  <span className="px-2.5 py-1 rounded text-xs font-semibold"
+                    style={{ backgroundColor: 'rgba(217,119,6,0.15)', color: '#FCD34D', border: '1px solid rgba(217,119,6,0.35)' }}>
+                    DEMONSTRATION MODE
                   </span>
                 </div>
                 <p className="text-sm text-slate-400 mt-1">
-                  Orchestrate deterministic, repeatable, national-level judging scenarios across IoT, Predictive ML, 3D Digital Twin, Copilot, and Governance.
+                  Scripted demonstration scenarios for presenting TRINETRA capabilities. Data shown here is not live mine data.
                 </p>
               </div>
             </div>

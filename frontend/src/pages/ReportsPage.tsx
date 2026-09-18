@@ -108,17 +108,9 @@ export const ReportsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              <FileText className="w-5 h-5 text-amber-400" />
-              Statutory & Regulatory Report Generation
-            </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/80 text-amber-400 border border-amber-800">
-              REPORTLAB ENGINE
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Server-side generation of DGMS compliance dossiers, safety audit summaries, and production variance statements.
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Statutory Reports</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Generate and download DGMS compliance reports, safety audit summaries, and production statements.
           </p>
         </div>
 
@@ -127,7 +119,7 @@ export const ReportsPage: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-amber-500/10 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>GENERATE STATUTORY REPORT</span>
+          <span>Generate report</span>
         </button>
       </div>
 

@@ -3,18 +3,33 @@ import { useMineContext } from '../context/MineContext';
 import { incidentService } from '../services';
 import { Incident, IncidentStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { AlertTriangle, Clock, ArrowRight, ShieldCheck, CheckCircle2, User, Plus, Crosshair } from 'lucide-react';
+import { EmptyState, PageLoadingState } from '../components/ui/EmptyState';
+import { PageHeader, SectionHeader } from '../components/ui/PageHeader';
+import {
+  AlertTriangle, Clock, MapPin, CheckCircle2,
+  X, ChevronRight, Eye
+} from 'lucide-react';
 
-const NEXT_STATUS_MAP: Record<IncidentStatus, IncidentStatus[]> = {
-  OPEN: ['TRIAGED', 'ASSIGNED', 'CLOSED'],
-  TRIAGED: ['ASSIGNED', 'IN_PROGRESS', 'CLOSED'],
-  ASSIGNED: ['IN_PROGRESS', 'CLOSED'],
-  IN_PROGRESS: ['RESOLVED', 'ESCALATED'],
-  ESCALATED: ['RESOLVED', 'IN_PROGRESS'],
-  RESOLVED: ['VERIFIED', 'IN_PROGRESS'],
-  VERIFIED: ['CLOSED', 'IN_PROGRESS'],
-  CLOSED: []
+const STATUS_TRANSITIONS: Record<IncidentStatus, { value: IncidentStatus; label: string }[]> = {
+  OPEN:       [{ value: 'TRIAGED', label: 'Start review' }, { value: 'ASSIGNED', label: 'Assign to inspector' }, { value: 'CLOSED', label: 'Close' }],
+  TRIAGED:    [{ value: 'ASSIGNED', label: 'Assign to inspector' }, { value: 'IN_PROGRESS', label: 'Begin work' }, { value: 'CLOSED', label: 'Close' }],
+  ASSIGNED:   [{ value: 'IN_PROGRESS', label: 'Begin work' }, { value: 'CLOSED', label: 'Close' }],
+  IN_PROGRESS:[{ value: 'RESOLVED', label: 'Mark resolved' }, { value: 'ESCALATED', label: 'Escalate' }],
+  ESCALATED:  [{ value: 'RESOLVED', label: 'Mark resolved' }, { value: 'IN_PROGRESS', label: 'Return to progress' }],
+  RESOLVED:   [{ value: 'VERIFIED', label: 'Verify & close' }, { value: 'IN_PROGRESS', label: 'Re-open' }],
+  VERIFIED:   [{ value: 'CLOSED', label: 'Close incident' }, { value: 'IN_PROGRESS', label: 'Re-open' }],
+  CLOSED:     [],
 };
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'Just now';
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
 
 export const IncidentsPage: React.FC = () => {
   const { selectedMine, focusInDigitalTwin } = useMineContext();
@@ -22,7 +37,6 @@ export const IncidentsPage: React.FC = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [targetStatus, setTargetStatus] = useState<IncidentStatus | ''>('');
   const [comment, setComment] = useState('');
-  const [notes, setNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,9 +53,7 @@ export const IncidentsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchIncidents();
-  }, [selectedMine?.id]);
+  useEffect(() => { fetchIncidents(); }, [selectedMine?.id]);
 
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,186 +64,246 @@ export const IncidentsPage: React.FC = () => {
         selectedIncident.id,
         targetStatus as IncidentStatus,
         comment,
-        notes
       );
       setSelectedIncident(null);
       setTargetStatus('');
       setComment('');
-      setNotes('');
       await fetchIncidents();
     } catch (err) {
-      console.error('Failed to update incident state:', err);
-      alert('Failed to update status transition.');
+      console.error('Failed to update incident:', err);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Operational Safety Incidents</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Governance state machine lifecycle: Triage, Assignment, SLA Tracking, Verification, and Closure.
-          </p>
-        </div>
-      </div>
+  const openCount     = incidents.filter(i => !['CLOSED'].includes(i.status)).length;
+  const criticalCount = incidents.filter(i => i.severity === 'CRITICAL' && i.status !== 'CLOSED').length;
 
-      {/* Incidents Table */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-md">
-        <table className="w-full text-left text-xs font-mono">
-          <thead>
-            <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[10px]">
-              <th className="py-3.5 px-4 font-semibold">Incident Code</th>
-              <th className="py-3.5 px-4 font-semibold">Title & Category</th>
-              <th className="py-3.5 px-4 font-semibold">Zone / Location</th>
-              <th className="py-3.5 px-4 font-semibold">Severity</th>
-              <th className="py-3.5 px-4 font-semibold">SLA Status</th>
-              <th className="py-3.5 px-4 font-semibold">Status</th>
-              <th className="py-3.5 px-4 font-semibold">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60 text-slate-300">
-            {incidents.length === 0 ? (
+  if (!selectedMine) return null;
+
+  return (
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        title="Safety Incidents"
+        subtitle="Track, assign, and resolve safety incidents. Each incident follows a structured review process."
+        badge={
+          criticalCount > 0 ? (
+            <span className="badge status-critical">
+              <span className="badge-dot" />
+              {criticalCount} critical
+            </span>
+          ) : openCount > 0 ? (
+            <span className="badge status-warning">
+              <span className="badge-dot" />
+              {openCount} open
+            </span>
+          ) : undefined
+        }
+        actions={
+          <button onClick={fetchIncidents} className="btn btn-secondary btn-sm">
+            Refresh
+          </button>
+        }
+      />
+
+      {isLoading ? (
+        <PageLoadingState message="Loading incidents…" />
+      ) : incidents.length === 0 ? (
+        <div className="surface-card">
+          <EmptyState
+            icon={CheckCircle2}
+            title="No incidents recorded"
+            description="There are no safety incidents recorded for this mine. Incidents will appear here when reported by sensors, field inspectors, or staff."
+          />
+        </div>
+      ) : (
+        <div className="surface-card overflow-hidden">
+          <table className="data-table" aria-label="Safety incidents">
+            <thead>
               <tr>
-                <td colSpan={7} className="py-8 text-center text-slate-500">
-                  No active incidents recorded for this mine.
-                </td>
+                <th>Reference</th>
+                <th>Incident</th>
+                <th>Location</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Reported</th>
+                <th>Actions</th>
               </tr>
-            ) : (
-              incidents.map((inc) => {
-                const nextOptions = NEXT_STATUS_MAP[inc.status] || [];
+            </thead>
+            <tbody>
+              {incidents.map((inc) => {
+                const transitions = STATUS_TRANSITIONS[inc.status] ?? [];
                 return (
-                  <tr key={inc.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-4 font-bold text-amber-400">{inc.incident_code}</td>
-                    <td className="py-3 px-4">
-                      <p className="font-semibold text-white">{inc.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate max-w-[220px]">{inc.category}</p>
+                  <tr key={inc.id}>
+                    <td>
+                      <span
+                        className="tech-value text-xs"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {inc.incident_code}
+                      </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <p className="text-slate-200">{inc.zone_name || 'Working Zone'}</p>
-                      <p className="text-[10px] text-slate-500">({inc.x}, {inc.y}, {inc.z})</p>
+                    <td>
+                      <p className="font-medium text-[var(--text-primary)]">{inc.title}</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">{inc.category}</p>
                     </td>
-                    <td className="py-3 px-4">
+                    <td>
+                      <span className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+                        <MapPin className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" aria-hidden="true" />
+                        {inc.zone_name || 'Working zone'}
+                      </span>
+                    </td>
+                    <td>
                       <StatusBadge status={inc.severity} size="sm" />
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Clock className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{inc.sla_hours}h SLA</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
+                    <td>
                       <StatusBadge status={inc.status} size="sm" />
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
+                    <td>
+                      <span className="text-sm text-[var(--text-muted)]">
+                        {relativeTime(inc.created_at)}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() =>
-                            focusInDigitalTwin({
-                              type: 'incident',
-                              id: inc.id,
-                              x: inc.x,
-                              y: inc.y,
-                              z: inc.z,
-                              title: `${inc.incident_code}: ${inc.title}`
-                            })
-                          }
-                          title="Center in 3D Digital Twin"
-                          className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[11px] font-bold transition-all border border-amber-500/30 flex items-center gap-1 cursor-pointer"
+                          onClick={() => focusInDigitalTwin({
+                            type: 'incident', id: inc.id,
+                            x: inc.x, y: inc.y, z: inc.z,
+                            title: inc.title,
+                          })}
+                          className="btn btn-ghost btn-sm p-1.5"
+                          title="View in mine map"
+                          aria-label="View in mine map"
                         >
-                          <Crosshair className="w-3 h-3" />
-                          <span>3D Focus</span>
+                          <Eye className="w-4 h-4" />
                         </button>
-                        {nextOptions.length > 0 ? (
+                        {transitions.length > 0 && (
                           <button
                             onClick={() => {
                               setSelectedIncident(inc);
-                              setTargetStatus(nextOptions[0]);
+                              setTargetStatus(transitions[0].value);
                             }}
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 text-[11px] font-bold transition-all border border-slate-700 cursor-pointer"
+                            className="btn btn-secondary btn-sm"
                           >
-                            Transition
+                            Update status
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </button>
-                        ) : (
-                          <span className="text-slate-600 text-[10px]">Closed</span>
+                        )}
+                        {transitions.length === 0 && (
+                          <span className="text-xs text-[var(--text-muted)]">Closed</span>
                         )}
                       </div>
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* State Machine Transition Modal */}
+      {/* Status update modal */}
       {selectedIncident && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="incident-modal-title"
+        >
+          <div
+            className="w-full max-w-md rounded-xl shadow-2xl"
+            style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-muted)' }}
+          >
+            {/* Modal header */}
+            <div
+              className="flex items-start justify-between p-5"
+              style={{ borderBottom: '1px solid var(--border-base)' }}
+            >
               <div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-amber-400 border border-slate-800">
+                <p
+                  className="text-xs tech-value mb-1"
+                  style={{ color: 'var(--text-muted)' }}
+                >
                   {selectedIncident.incident_code}
-                </span>
-                <h3 className="text-base font-bold text-white mt-1">{selectedIncident.title}</h3>
+                </p>
+                <h2
+                  id="incident-modal-title"
+                  className="text-base font-semibold text-[var(--text-primary)]"
+                >
+                  Update Incident Status
+                </h2>
+                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                  {selectedIncident.title}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedIncident(null)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="btn btn-ghost btn-sm p-1.5 ml-3 flex-shrink-0"
+                aria-label="Close"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateStatus} className="space-y-4">
+            <form onSubmit={handleUpdateStatus} className="p-5 space-y-4">
+              {/* Current status */}
+              <div className="flex items-center gap-2 p-3 rounded-md" style={{ backgroundColor: 'var(--bg-muted)' }}>
+                <span className="text-sm text-[var(--text-muted)]">Current status:</span>
+                <StatusBadge status={selectedIncident.status} size="sm" />
+              </div>
+
+              {/* New status select */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                  Target State Transition
+                <label htmlFor="new-status" className="form-label">
+                  Change status to
                 </label>
                 <select
+                  id="new-status"
                   value={targetStatus}
                   onChange={(e) => setTargetStatus(e.target.value as IncidentStatus)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs font-mono focus:outline-none focus:border-amber-500"
+                  className="form-select"
                 >
-                  {NEXT_STATUS_MAP[selectedIncident.status].map((st) => (
-                    <option key={st} value={st}>
-                      Transition to {st}
+                  {STATUS_TRANSITIONS[selectedIncident.status].map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Comment */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                  Governance Comment / Evidence Log
+                <label htmlFor="incident-comment" className="form-label">
+                  Notes <span className="text-[var(--text-muted)] font-normal">(required — added to audit trail)</span>
                 </label>
                 <textarea
+                  id="incident-comment"
                   required
                   rows={3}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Detail corrective actions or verification results for the audit trail..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs focus:outline-none focus:border-amber-500"
+                  placeholder="Describe the action taken or the reason for this status change…"
+                  className="form-textarea"
                 />
+                <p className="form-hint">This comment is recorded in the permanent audit trail.</p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedIncident(null)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isUpdating}
-                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider transition-all"
+                  disabled={isUpdating || !comment.trim()}
+                  className="btn btn-primary"
                 >
-                  {isUpdating ? 'Recording Transition...' : 'Confirm Status Update'}
+                  {isUpdating ? 'Saving…' : 'Confirm update'}
                 </button>
               </div>
             </form>

@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, LogIn } from 'lucide-react';
+
+const QUICK_LOGINS = [
+  { role: 'System Administrator', email: 'admin@trinetra.gov.in', desc: 'Full governance access' },
+  { role: 'Mine Manager', email: 'manager.mine1@trinetra.gov.in', desc: 'Bharat Deep Shaft 4' },
+  { role: 'Safety Officer', email: 'safety.mine1@trinetra.gov.in', desc: 'Mine BDS-04' },
+  { role: 'Mine Manager (2)', email: 'manager.mine2@trinetra.gov.in', desc: 'Singrauli OpenCast' },
+  { role: 'Field Inspector', email: 'inspector.dgms@trinetra.gov.in', desc: 'Statutory inspections' },
+];
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@trinetra.gov.in');
+  const [email, setEmail]       = useState('admin@trinetra.gov.in');
   const [password, setPassword] = useState('Trinetra@2026');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -16,76 +24,139 @@ export const LoginPage: React.FC = () => {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid email or password');
+      setError(err.response?.data?.detail || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const quickLogins = [
-    { role: 'System Admin', email: 'admin@trinetra.gov.in', desc: 'Cross-mine governance' },
-    { role: 'Mine 1 Manager (BDS-04)', email: 'manager.mine1@trinetra.gov.in', desc: 'Bharat Deep Shaft 4' },
-    { role: 'Mine 1 Safety Officer', email: 'safety.mine1@trinetra.gov.in', desc: 'Safety Compliance BDS-04' },
-    { role: 'Mine 2 Manager (SOB-02)', email: 'manager.mine2@trinetra.gov.in', desc: 'Singrauli OpenCast' },
-    { role: 'Field Inspector (DGMS)', email: 'inspector.dgms@trinetra.gov.in', desc: 'Statutory Inspections' },
-  ];
-
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Subtle Background Glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 left-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 shadow-xl shadow-amber-500/20 mb-4">
-          <span className="font-mono font-black text-slate-950 text-2xl">त्रिन</span>
+    <div
+      className="min-h-screen flex"
+      style={{ backgroundColor: 'var(--bg-base)' }}
+    >
+      {/* Left panel — branding */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-80 xl:w-96 p-10 flex-shrink-0"
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border-base)',
+        }}
+      >
+        {/* Logo */}
+        <div>
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center mb-8"
+            style={{ background: 'linear-gradient(135deg, #B45309, #D97706)' }}
+            aria-hidden="true"
+          >
+            <span className="font-bold text-[#0A0F0D] text-lg leading-none">त्रि</span>
+          </div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] leading-tight mb-2">
+            TRINETRA
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            AI-Based Smart Governance & Compliance Monitoring Platform for Indian Coal Mines
+          </p>
         </div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white uppercase">TRINETRA</h2>
-        <p className="mt-2 text-xs text-amber-400 font-mono tracking-wider uppercase">
-          AI-Based Smart Governance & Compliance Monitoring System
-        </p>
+
+        {/* Feature highlights */}
+        <div className="space-y-4">
+          {[
+            ['Real-time safety monitoring', 'Environmental sensor readings, alerts, and incident management across all zones.'],
+            ['Statutory compliance', 'DGMS compliance tracking, corrective actions, and approval workflows.'],
+            ['Risk intelligence', 'Predictive risk analysis powered by AI models trained on mine safety data.'],
+          ].map(([title, desc]) => (
+            <div key={title}>
+              <p className="text-sm font-medium text-[var(--text-primary)] mb-0.5">{title}</p>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Ministry of Coal, Government of India<br />
+            Authorised use only
+          </p>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-slate-900/90 py-8 px-6 shadow-2xl border border-slate-800 rounded-2xl sm:px-10 backdrop-blur-xl">
+      {/* Right panel — login form */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'linear-gradient(135deg, #B45309, #D97706)' }}
+              aria-hidden="true"
+            >
+              <span className="font-bold text-[#0A0F0D] text-lg">त्रि</span>
+            </div>
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">TRINETRA</h1>
+          </div>
+
+          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-1">
+            Sign in
+          </h2>
+          <p className="text-sm text-[var(--text-muted)] mb-8">
+            Use your authorised government credentials to access the platform.
+          </p>
+
           {error && (
-            <div className="mb-5 p-3 rounded-lg bg-rose-950/80 border border-rose-800/80 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div
+              className="flex items-center gap-2 p-3 rounded-lg mb-5 text-sm"
+              style={{
+                backgroundColor: 'var(--color-critical-bg)',
+                border: '1px solid var(--color-critical-border)',
+                color: 'var(--color-critical-text)',
+              }}
+              role="alert"
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Official Email
-              </label>
+              <label htmlFor="email" className="form-label">Official email</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <Mail
+                  className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-hidden="true"
+                />
                 <input
+                  id="email"
                   type="email"
                   required
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
                   placeholder="name@trinetra.gov.in"
+                  className="form-input pl-9"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Password
-              </label>
+              <label htmlFor="password" className="form-label">Password</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <Lock
+                  className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-hidden="true"
+                />
                 <input
+                  id="password"
                   type="password"
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
-                  placeholder="••••••••••••"
+                  className="form-input pl-9"
                 />
               </div>
             </div>
@@ -93,38 +164,42 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-bold uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+              className="btn btn-primary w-full justify-center"
+              style={{ padding: '0.625rem 1rem' }}
             >
-              {isLoading ? 'Authenticating...' : 'Sign In to Portal'}
-              <ArrowRight className="w-4 h-4" />
+              {isLoading ? (
+                <>
+                  <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#0A0F0D', borderTopColor: 'transparent' }} aria-hidden="true" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" aria-hidden="true" />
+                  Sign in
+                </>
+              )}
             </button>
           </form>
 
-          {/* Quick Demo Fill Buttons */}
-          <div className="mt-6 pt-6 border-t border-slate-800">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3 text-center">
-              Quick Role Switch (Demo Credentials)
+          {/* Quick login */}
+          <div className="mt-8">
+            <p
+              className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3"
+              style={{ borderTop: '1px solid var(--border-base)', paddingTop: '1.5rem' }}
+            >
+              Demo accounts
             </p>
             <div className="space-y-1.5">
-              {quickLogins.map((q) => (
+              {QUICK_LOGINS.map(({ role, email: e, desc }) => (
                 <button
-                  key={q.email}
+                  key={e}
                   type="button"
-                  onClick={() => {
-                    setEmail(q.email);
-                    setPassword('Trinetra@2026');
-                  }}
-                  className="w-full text-left p-2 rounded-lg bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/50 transition-all flex items-center justify-between group"
+                  onClick={() => { setEmail(e); setPassword('Trinetra@2026'); }}
+                  className="w-full text-left px-3 py-2 rounded-md transition-colors cursor-pointer"
+                  style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-base)' }}
                 >
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200 group-hover:text-amber-400 transition-colors">
-                      {q.role}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-mono">{q.desc}</p>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
-                    Use
-                  </span>
+                  <span className="block text-sm font-medium text-[var(--text-primary)]">{role}</span>
+                  <span className="block text-xs text-[var(--text-muted)]">{desc}</span>
                 </button>
               ))}
             </div>

@@ -52,17 +52,9 @@ export const ContractorsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-amber-400" />
-              Contractor Governance & Compliance Management
-            </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/80 text-amber-400 border border-amber-800">
-              AUDITED VENDORS
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Monitor outsourced mining operations, equipment contracts, statutory certifications, and contract expiry SLAs.
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Contractors</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Manage outsourced mining contractors, contracts, certifications, and compliance status.
           </p>
         </div>
       </div>

@@ -71,12 +71,9 @@ export const ProductionPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Pickaxe className="w-5 h-5 text-amber-400" />
-            Coal Production Governance & Shift Logs
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Track planned vs actual extraction, seam output variances, and automated production deviation reviews.
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Production</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Track planned vs actual coal extraction, shift output, and production targets.
           </p>
         </div>
 
@@ -85,7 +82,7 @@ export const ProductionPage: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-amber-500/10 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>LOG SHIFT PRODUCTION</span>
+          <span>Log shift production</span>
         </button>
       </div>
 

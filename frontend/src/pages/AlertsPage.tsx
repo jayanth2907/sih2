@@ -4,7 +4,26 @@ import { alertService } from '../services';
 import type { Alert } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { AnomalySpatialModal } from '../components/AnomalySpatialModal';
-import { Bell, ShieldAlert, CheckCircle2, Crosshair, Filter, Clock, MapPin, Eye } from 'lucide-react';
+import { EmptyState, PageLoadingState } from '../components/ui/EmptyState';
+import { PageHeader, SectionHeader } from '../components/ui/PageHeader';
+import { Bell, MapPin, Clock, Eye, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
+
+const FILTER_OPTIONS = [
+  { value: 'ALL',          label: 'All' },
+  { value: 'UNREAD',       label: 'New' },
+  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+  { value: 'RESOLVED',     label: 'Resolved' },
+];
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'Just now';
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export const AlertsPage: React.FC = () => {
   const { selectedMine, focusInDigitalTwin } = useMineContext();
@@ -19,7 +38,7 @@ export const AlertsPage: React.FC = () => {
     try {
       const data = await alertService.getAlerts(
         selectedMine.id,
-        statusFilter === 'ALL' ? undefined : statusFilter
+        statusFilter === 'ALL' ? undefined : statusFilter,
       );
       setAlerts(data);
     } catch (err) {
@@ -29,9 +48,7 @@ export const AlertsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchAlerts();
-  }, [selectedMine?.id, statusFilter]);
+  useEffect(() => { fetchAlerts(); }, [selectedMine?.id, statusFilter]);
 
   const handleUpdateStatus = async (alertId: number, newStatus: string) => {
     try {
@@ -44,95 +61,123 @@ export const AlertsPage: React.FC = () => {
 
   if (!selectedMine) return null;
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Bell className="w-5 h-5 text-amber-400" />
-            Operational Alarm & Alert Dispatch
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time hazard notifications, threshold alerts, and incident links with deduplication.
-          </p>
-        </div>
+  const newCount = alerts.filter(a => a.status === 'UNREAD').length;
 
-        {/* Filter Toolbar */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono">
-          {['ALL', 'UNREAD', 'ACKNOWLEDGED', 'RESOLVED'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1 rounded transition-colors ${
-                statusFilter === st
-                  ? 'bg-amber-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
+  return (
+    <div className="space-y-6 page-enter">
+      <PageHeader
+        title="Safety Alerts"
+        subtitle="Active notifications for this mine. Acknowledge alerts and coordinate field response."
+        badge={newCount > 0 ? (
+          <span
+            className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: 'var(--color-critical-bg)', color: 'var(--color-critical-text)', border: '1px solid var(--color-critical-border)' }}
+          >
+            {newCount}
+          </span>
+        ) : undefined}
+        actions={
+          <button onClick={fetchAlerts} className="btn btn-secondary btn-sm">
+            Refresh
+          </button>
+        }
+      />
+
+      {/* Filter bar */}
+      <div
+        className="flex items-center gap-1 p-1 rounded-lg w-fit"
+        style={{ backgroundColor: 'var(--bg-raised)', border: '1px solid var(--border-base)' }}
+        role="group"
+        aria-label="Filter alerts by status"
+      >
+        {FILTER_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(opt.value)}
+            aria-pressed={statusFilter === opt.value}
+            className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer"
+            style={{
+              backgroundColor: statusFilter === opt.value ? 'var(--brand-primary)' : 'transparent',
+              color: statusFilter === opt.value ? '#0A0F0D' : 'var(--text-muted)',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
-      {/* Alerts Grid */}
-      <div className="space-y-3">
-        {alerts.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-500 font-mono text-xs">
-            No active alerts matching filter.
-          </div>
-        ) : (
-          alerts.map((a) => (
-            <div
+      {/* Alert list */}
+      {isLoading ? (
+        <PageLoadingState message="Loading alerts…" />
+      ) : alerts.length === 0 ? (
+        <div className="surface-card">
+          <EmptyState
+            icon={CheckCircle2}
+            title="No alerts"
+            description={
+              statusFilter === 'ALL'
+                ? 'There are currently no alerts for this mine.'
+                : `No ${FILTER_OPTIONS.find(o => o.value === statusFilter)?.label.toLowerCase()} alerts.`
+            }
+          />
+        </div>
+      ) : (
+        <div className="space-y-3" role="list" aria-label="Alert list">
+          {alerts.map((a) => (
+            <article
               key={a.id}
-              className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md space-y-3 hover:border-slate-700 transition-all"
+              className="surface-card p-4 hover:border-[var(--border-muted)] transition-colors"
+              style={a.status === 'UNREAD' ? { borderLeftWidth: 3, borderLeftColor: 'var(--color-critical)' } : {}}
+              role="listitem"
             >
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-amber-400">ALERT #{a.id}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
-                      {a.source}
-                    </span>
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <StatusBadge status={a.severity} size="sm" />
                     <StatusBadge status={a.status} size="sm" />
+                    {a.status === 'UNREAD' && (
+                      <span
+                        className="text-xs font-semibold"
+                        style={{ color: 'var(--color-critical-text)' }}
+                      >
+                        New
+                      </span>
+                    )}
                   </div>
-                  <h3 className="text-sm font-bold text-white mt-1">{a.title}</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">{a.title}</h3>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 font-mono text-xs">
-                  {a.sensor_id && (
-                    <button
-                      onClick={() =>
-                        focusInDigitalTwin({
-                          type: 'sensor',
-                          id: a.sensor_id,
-                          x: 145.0, // Defaults to seam coords if exact not on alert
-                          y: 470.0,
-                          z: -318.0,
-                          title: a.title
-                        })
-                      }
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[11px] font-bold transition-all cursor-pointer"
-                    >
-                      <Crosshair className="w-3.5 h-3.5" />
-                      3D Focus
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {a.anomaly_id && (
                     <button
                       onClick={() => setInspectAnomalyId(a.anomaly_id || null)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/40 text-[11px] font-semibold transition-all cursor-pointer"
+                      className="btn btn-secondary btn-sm"
+                      title="View affected area"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      Inspect Proximity
+                      <span className="hidden sm:inline">Affected area</span>
+                    </button>
+                  )}
+                  {a.sensor_id && (
+                    <button
+                      onClick={() => focusInDigitalTwin({
+                        type: 'sensor', id: a.sensor_id,
+                        x: 145.0, y: 470.0, z: -318.0,
+                        title: a.title,
+                      })}
+                      className="btn btn-secondary btn-sm"
+                      title="View location in mine map"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Mine map</span>
                     </button>
                   )}
                   {a.status === 'UNREAD' && (
                     <button
                       onClick={() => handleUpdateStatus(a.id, 'ACKNOWLEDGED')}
-                      className="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-all"
+                      className="btn btn-primary btn-sm"
                     >
                       Acknowledge
                     </button>
@@ -140,7 +185,7 @@ export const AlertsPage: React.FC = () => {
                   {a.status !== 'RESOLVED' && (
                     <button
                       onClick={() => handleUpdateStatus(a.id, 'RESOLVED')}
-                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-emerald-950 hover:text-emerald-300 text-slate-300 border border-slate-700 text-[11px] transition-all"
+                      className="btn btn-secondary btn-sm"
                     >
                       Resolve
                     </button>
@@ -148,24 +193,31 @@ export const AlertsPage: React.FC = () => {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed font-sans">{a.message}</p>
+              {/* Message */}
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-2">
+                {a.message}
+              </p>
 
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-2 border-t border-slate-800/60">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-amber-400" />
-                  {a.location_context || 'Location N/A'}
+              {/* Footer */}
+              <div
+                className="flex items-center justify-between mt-3 pt-2.5 text-xs text-[var(--text-muted)] flex-wrap gap-2"
+                style={{ borderTop: '1px solid var(--border-base)' }}
+              >
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3" aria-hidden="true" />
+                  {a.location_context || 'Location not specified'}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-500" />
-                  {new Date(a.created_at).toLocaleString()}
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" aria-hidden="true" />
+                  {relativeTime(a.created_at)}
                 </span>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
 
-      {/* Spatial Inspector Modal */}
+      {/* Spatial proximity modal */}
       <AnomalySpatialModal
         anomalyId={inspectAnomalyId}
         onClose={() => setInspectAnomalyId(null)}

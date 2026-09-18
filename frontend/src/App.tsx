@@ -10,10 +10,28 @@ const MainApp: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 font-mono text-xs">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
-          <span>INITIALIZING TRINETRA GOVERNANCE CORE...</span>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-base)' }}
+        role="status"
+        aria-label="Starting TRINETRA"
+      >
+        <div className="flex flex-col items-center gap-4">
+          {/* Logo mark */}
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #B45309, #D97706)' }}
+            aria-hidden="true"
+          >
+            <span className="font-bold text-[#0A0F0D] text-lg leading-none">त्रि</span>
+          </div>
+          {/* Spinner */}
+          <div
+            className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: 'var(--brand-primary)', borderTopColor: 'transparent' }}
+            aria-hidden="true"
+          />
+          <p className="text-sm text-[var(--text-muted)]">Starting TRINETRA…</p>
         </div>
       </div>
     );
@@ -41,4 +59,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

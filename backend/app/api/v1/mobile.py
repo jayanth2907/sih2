@@ -27,6 +27,7 @@ def sync_field_batch(
     return FieldService.process_sync_batch(db, current_user, request)
 
 @router.get("/inspections", response_model=List[dict])
+@router.get("/inspections/assigned", response_model=List[dict])
 def get_assigned_inspections(
     mine_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_active_user),

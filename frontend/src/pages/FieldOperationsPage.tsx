@@ -439,14 +439,11 @@ export const FieldOperationsPage: React.FC = () => {
                 <Shield className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                  {t('fieldOperations')}
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 border border-slate-700 font-mono">
-                    OFFLINE-FIRST
-                  </span>
+                <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+                  Inspections
                 </h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  DGMS Statutory Mobile Inspections, Evidence Ledger & Idempotent Synchronization
+                <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                  Field inspections, evidence capture, and synchronisation for mine safety officers.
                 </p>
               </div>
             </div>
